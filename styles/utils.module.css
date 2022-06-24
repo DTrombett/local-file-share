@@ -1,0 +1,152 @@
+.heading2Xl {
+	font-size: 2.5rem;
+	line-height: 1.2;
+	font-weight: 800;
+	letter-spacing: -0.05rem;
+	margin: 1rem 0;
+}
+
+.headingXl {
+	font-size: 2rem;
+	line-height: 1.3;
+	font-weight: 800;
+	letter-spacing: -0.05rem;
+	margin: 1rem 0;
+}
+
+.headingLg {
+	font-size: 1.5rem;
+	line-height: 1.4;
+	margin: 1rem 0;
+}
+
+.headingMd {
+	font-size: 1.2rem;
+	line-height: 1.5;
+}
+
+.colorInherit {
+	color: inherit;
+}
+
+.padding1px {
+	padding-top: 1px;
+}
+
+.list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.listItem {
+	margin: 0 0 1.25rem;
+}
+
+.lightText {
+	color: #b0b0b0;
+}
+
+.optionsDiv {
+	margin-top: 1rem;
+	border: 1px dashed var(--color);
+	border-radius: 50px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.description {
+	text-align: center;
+}
+
+.centered {
+	display: flex;
+}
+
+.optionElement {
+	margin-top: 1rem;
+	margin-left: 2rem;
+}
+.optionElement:first-child {
+	margin-top: 2rem !important;
+}
+.optionElement:last-child {
+	margin-top: 2rem;
+	margin-bottom: 2rem;
+}
+
+.ipsDiv {
+	height: 1rem;
+	margin-right: 1rem;
+	margin-bottom: 1rem;
+}
+
+.ips {
+	vertical-align: middle;
+	margin-left: 0.5rem;
+	background-color: #2a2a2a;
+	color: inherit;
+	font-size: medium;
+	border-radius: 5px;
+}
+
+.ipsText {
+	vertical-align: middle;
+}
+
+.wrongIps {
+	border-color: #ff0000 !important;
+}
+
+.fileInput {
+	background-color: #363636 !important;
+	color: inherit !important;
+	border: none;
+}
+.fileInput:hover {
+	background-color: #2a2a2a !important;
+}
+
+.fileName {
+	margin-left: 1rem;
+	margin-right: 2rem;
+	margin-bottom: 1rem;
+	height: inherit;
+	display: inline-block;
+	vertical-align: middle;
+	position: relative;
+	top: 0.5rem;
+	word-break: break-all;
+}
+
+.upload {
+	background-color: #363636 !important;
+	color: inherit !important;
+	border: none;
+	margin-left: auto;
+	margin-right: auto;
+}
+.upload:hover {
+	background-color: #2a2a2a !important;
+}
+
+.input {
+	display: none;
+}
+
+.removeHoverUnderline:hover {
+	text-decoration: none;
+}
+
+.container {
+	max-width: 36rem;
+	padding: 0 1rem;
+	margin: 3rem auto;
+}
+
+.header {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
