@@ -40,11 +40,35 @@
 }
 
 .listItem {
-	margin: 0 0 1.25rem;
+	margin-right: 1rem;
+	margin-left: 1rem;
+}
+.listItem:not(:last-child) {
+	margin-bottom: 1rem;
+}
+.listItem:not(:first-child) {
+	margin-top: 1rem;
 }
 
 .lightText {
 	color: #b0b0b0;
+}
+
+.actionButtons {
+	float: right;
+}
+
+.actionButton {
+	background-color: inherit !important;
+	color: inherit !important;
+	border: none;
+	margin-top: 0.5rem;
+}
+.actionButton:not(:last-child) {
+	margin-right: 0.5rem;
+}
+.actionButton:hover {
+	background-color: #2a2a2a !important;
 }
 
 .optionsDiv {
@@ -136,13 +160,13 @@
 }
 
 .removeHoverUnderline:hover {
-	text-decoration: none;
+	text-decoration: none !important;
 }
 
 .container {
 	max-width: 36rem;
 	padding: 0 1rem;
-	margin: 3rem auto;
+	margin: 1rem auto;
 }
 
 .header {

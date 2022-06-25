@@ -9,6 +9,7 @@ export type FileData = {
 	ips?: number[];
 	size: number;
 	type: string;
+	owner: number;
 };
 export type Props<T> = {
 	props: T;

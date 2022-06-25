@@ -1,7 +1,7 @@
-import "@fortawesome/fontawesome-free/css/all.min.css";
+import { faDownload, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
-import Link from "next/link";
 import { useState } from "react";
 import DateComponent from "../components/DateComponent";
 import formatBytes from "../lib/formatBytes";
@@ -127,18 +127,37 @@ const Home = ({ filesData, ip }: HomeOptions) => {
 					<section className={`${styles.headingMd} ${styles.padding1px}`}>
 						<h2 className={styles.headingLg}>Files</h2>
 						<ul className={styles.list}>
-							{filesData.map(({ date, name, size }) => (
-								<li className={styles.listItem} key={name}>
-									<Link href={`/api/file?name=${encodeURIComponent(name)}`}>
-										<a>
+							{filesData.map(({ date, name, size, owner }, i) => (
+								<>
+									<li className={styles.listItem} key={name}>
+										<a href={`/api/files/${name}`}>
 											{name} ({formatBytes(size)})
 										</a>
-									</Link>
-									<br />
-									<small className={styles.lightText}>
-										<DateComponent timestamp={date} />
-									</small>
-								</li>
+										<span className={`${styles.actionButtons}`}>
+											{owner === ip && (
+												<button
+													className={`button ${styles.actionButton}`}
+													onClick={() => {
+														// TODO: delete file
+													}}
+												>
+													<FontAwesomeIcon icon={faTrashCan} />
+												</button>
+											)}
+											<a
+												className={`button ${styles.actionButton}`}
+												href={`/api/files/${name}?download=true`}
+											>
+												<FontAwesomeIcon icon={faDownload} />
+											</a>
+										</span>
+										<br />
+										<small className={styles.lightText}>
+											<DateComponent timestamp={date} />
+										</small>
+									</li>
+									{i !== filesData.length - 1 && <hr />}
+								</>
 							))}
 						</ul>
 					</section>
@@ -146,8 +165,10 @@ const Home = ({ filesData, ip }: HomeOptions) => {
 			</div>
 			<footer className="footer">
 				<i>
-					Da un idea di D Trombett. Progetto realizzato in JavaScript e
-					TypeScript grazie a Next.js
+					Da un idea di D Trombett. Progetto realizzato in JavaScript e{" "}
+					{<a href="https://www.typescriptlang.org/">TypeScript</a>} grazie a{" "}
+					{<a href="https://reactjs.org/">React</a>} e{" "}
+					{<a href="https://nextjs.org/">Next.js</a>}
 				</i>
 			</footer>
 		</>

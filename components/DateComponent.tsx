@@ -1,4 +1,3 @@
-import capitalize from "../lib/capitalize";
 import type { DateOptions } from "../types";
 
 /**
@@ -7,13 +6,7 @@ import type { DateOptions } from "../types";
 const DateComponent = ({ timestamp }: DateOptions) => {
 	const date = new Date(timestamp);
 
-	return (
-		<time dateTime={date.toISOString()}>
-			{date.getDate()}{" "}
-			{capitalize(date.toLocaleString("default", { month: "long" }))}{" "}
-			{date.getFullYear()}
-		</time>
-	);
+	return <time dateTime={date.toISOString()}>{date.toLocaleString()}</time>;
 };
 
 export default DateComponent;

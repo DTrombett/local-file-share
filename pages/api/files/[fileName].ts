@@ -4,12 +4,12 @@ import { stat } from "node:fs/promises";
 import type { OutgoingHttpHeaders } from "node:http";
 import { join } from "node:path";
 import { cwd } from "node:process";
-import getFilesData from "../../lib/getFilesData";
-import parseIp from "../../lib/parseIp";
+import getFilesData from "../../../lib/getFilesData";
+import parseIp from "../../../lib/parseIp";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 	const file = (await getFilesData(parseIp(req.socket.remoteAddress))).find(
-		({ name }) => name === req.query.name
+		({ name }) => name === req.query.fileName
 	);
 
 	if (!file) {
