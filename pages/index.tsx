@@ -8,15 +8,16 @@ import formatBytes from "../lib/formatBytes";
 import getFilesData from "../lib/getFilesData";
 import parseIp from "../lib/parseIp";
 import styles from "../styles/utils.module.css";
-import type { HomeOptions, Props } from "../types";
+import type { Files, HomeOptions, Props } from "../types";
 
 const description =
 		"Condividi file all'interno della stessa connessione in modo sicuro, privato e veloce",
 	title = "Local File Share";
 
-const Home = ({ filesData, ip }: HomeOptions) => {
+const Home = ({ filesData: initialFilesData, ip }: HomeOptions) => {
 	const [fileString, setFileString] = useState<string>("");
 	const [wrongIps, setWrongIps] = useState<boolean>(false);
+	const [filesData, setFilesData] = useState<Files>(initialFilesData);
 
 	const handleFiles = (fileList?: FileList | null) => {
 		if (!fileList) return;
@@ -138,7 +139,20 @@ const Home = ({ filesData, ip }: HomeOptions) => {
 												<button
 													className={`button ${styles.actionButton}`}
 													onClick={() => {
-														// TODO: delete file
+														if (
+															!confirm(
+																`Sei sicuro di voler eliminare "${name}"?`
+															)
+														)
+															return;
+														setFilesData(
+															filesData.filter((file) => file.name !== name)
+														);
+														fetch(`/api/files/${name}`, {
+															method: "DELETE",
+														}).catch(() => {
+															// Ignore
+														});
 													}}
 												>
 													<FontAwesomeIcon icon={faTrashCan} />
