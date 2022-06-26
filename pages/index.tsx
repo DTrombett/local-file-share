@@ -1,5 +1,6 @@
 import { faDownload, faTrashCan } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import ms from "ms";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import { Component } from "react";
@@ -24,9 +25,12 @@ class Home extends Component {
 		};
 		speed?: number;
 		wrongIps: boolean;
+		duration?: number;
 	};
 
 	ip: number;
+
+	startUploadTime?: number;
 
 	constructor(props: HomeOptions) {
 		super(props);
@@ -105,6 +109,7 @@ class Home extends Component {
 			oldLoaded = lastLoaded;
 		}, 1000);
 
+		this.startUploadTime = Date.now();
 		if (ips) data.ips = ips.split(/\s*,\s*/).map((i) => Number(i));
 		formData.append("file1", file);
 		formData.append("data", JSON.stringify(data));
@@ -119,16 +124,18 @@ class Home extends Component {
 			lastLoaded = loaded;
 		});
 		xhr.addEventListener("load", () => {
+			clearInterval(interval);
 			this.setState({
 				files: [...files, JSON.parse(xhr.responseText)],
+				duration: Date.now() - this.startUploadTime!,
 			});
-			clearInterval(interval);
+			this.startUploadTime = undefined;
 		});
 		xhr.send(formData);
 	}
 
 	render() {
-		const { file, files, upload, wrongIps, speed } = this.state;
+		const { file, files, upload, wrongIps, speed, duration } = this.state;
 
 		return (
 			<>
@@ -197,12 +204,21 @@ class Home extends Component {
 							{upload && (
 								<div className={`${styles.progress}`}>
 									<span>
-										Caricamento{" "}
 										{upload.progress === upload.total
-											? "completato!"
-											: `(${formatBytes(upload.progress)}/${formatBytes(
-													upload.total
-											  )} - ${formatBytes(speed ?? upload.progress)}/s)`}
+											? `Caricamento completato in ${ms(
+													duration ?? 1000
+											  )} (${formatBytes(
+													(upload.total * 1000) / (duration ?? 1000)
+											  )}/s)`
+											: `Caricando ${formatBytes(
+													upload.progress,
+													false
+											  )}/${formatBytes(upload.total, false)} (${Math.round(
+													(upload.progress / upload.total) * 100
+											  )}%) - ${formatBytes(
+													speed ?? upload.progress,
+													false
+											  )}/s`}
 									</span>
 									<div className={`${styles.progressBar}`}>
 										<div
@@ -217,52 +233,56 @@ class Home extends Component {
 						</div>
 						<section className={`${styles.headingMd} ${styles.padding1px}`}>
 							<h2 className={styles.headingLg}>Files</h2>
-							<ul className={styles.list}>
-								{files.map(({ date, name, size, owner }, i) => (
-									// TODO: Create a component for this
-									<li className={styles.listItem} key={name}>
-										<a href={`/api/files/${name}`}>
-											{name} ({formatBytes(size)})
-										</a>
-										<span className={`${styles.actionButtons}`}>
-											{owner === this.ip && (
-												<button
-													className={`button ${styles.actionButton}`}
-													onClick={() => {
-														if (
-															!confirm(
-																`Sei sicuro di voler eliminare "${name}"?`
-															)
-														)
-															return;
-														this.setState({
-															files: files.filter((f) => f.name !== name),
-														});
-														fetch(`/api/files/${name}`, {
-															method: "DELETE",
-														}).catch(() => {
-															// Ignore
-														});
-													}}
-												>
-													<FontAwesomeIcon icon={faTrashCan} />
-												</button>
-											)}
-											<a
-												className={`button ${styles.actionButton}`}
-												href={`/api/files/${name}?download=true`}
-											>
-												<FontAwesomeIcon icon={faDownload} />
+							{files.length ? (
+								<ul className={styles.list}>
+									{files.map(({ date, name, size, owner }, i) => (
+										// TODO: Create a component for this
+										<li className={styles.listItem} key={name}>
+											<a href={`/api/files/${name}`}>
+												{name} ({formatBytes(size)})
 											</a>
-										</span>
-										<br />
-										<small className={styles.lightText}>
-											<DateComponent timestamp={date} />
-										</small>
-										{i !== files.length - 1 && <hr />}
-									</li>
-								))}
-							</ul>
+											<span className={`${styles.actionButtons}`}>
+												{(owner === this.ip || this.ip === 1) && (
+													<button
+														className={`button ${styles.actionButton}`}
+														onClick={() => {
+															if (
+																!confirm(
+																	`Sei sicuro di voler eliminare "${name}"?`
+																)
+															)
+																return;
+															this.setState({
+																files: files.filter((f) => f.name !== name),
+															});
+															fetch(`/api/files/${name}`, {
+																method: "DELETE",
+															}).catch(() => {
+																// Ignore
+															});
+														}}
+													>
+														<FontAwesomeIcon icon={faTrashCan} />
+													</button>
+												)}
+												<a
+													className={`button ${styles.actionButton}`}
+													href={`/api/files/${name}?download=true`}
+												>
+													<FontAwesomeIcon icon={faDownload} />
+												</a>
+											</span>
+											<br />
+											<small className={styles.lightText}>
+												<DateComponent timestamp={date} />
+											</small>
+											{i !== files.length - 1 && <hr />}
+										</li>
+									))}
+								</ul>
+							) : (
+								"Nessun file disponibile"
+							)}
 						</section>
 					</main>
 				</div>

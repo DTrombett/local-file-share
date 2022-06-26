@@ -1,6 +1,7 @@
 import type { Fields, Files } from "formidable";
 import { IncomingForm } from "formidable";
 import type { NextApiRequest, NextApiResponse } from "next";
+import type { Stats } from "node:fs";
 import { createReadStream } from "node:fs";
 import { stat, unlink, writeFile } from "node:fs/promises";
 import type { OutgoingHttpHeaders } from "node:http";
@@ -52,7 +53,10 @@ export const config = {
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 	const { fileName } = req.query as { fileName: string };
 	const ip = parseIp(req.socket.remoteAddress);
-	let file: FileData | undefined, files: FileData[], newFiles: FileData[];
+	let file: FileData | undefined,
+		files: FileData[],
+		newFiles: FileData[],
+		stats: Stats | void;
 
 	switch (req.method) {
 		case "GET":
@@ -63,7 +67,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 				return;
 			}
 			const path = join(cwd(), ".files/uploads", file.name);
-			const stats = await stat(path).catch((err) => {
+			stats = await stat(path).catch((err) => {
 				console.error(err);
 			});
 
@@ -86,7 +90,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 			await queue.wait();
 			files = await getFilesData();
 			newFiles = files.filter(
-				({ name, owner }) => name !== fileName || owner !== ip
+				({ name, owner }) => name !== fileName || (owner !== ip && ip !== 1)
 			);
 
 			if (newFiles.length === files.length) {
@@ -111,6 +115,20 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 			break;
 		case "POST":
 			await queue.wait();
+			stats = await stat(join(cwd(), ".files/uploads")).catch((err) => {
+				console.error(err);
+			});
+
+			if (!stats) {
+				res.status(500).end();
+				queue.next();
+				return;
+			}
+			if (stats.size > 1e10) {
+				res.status(403).send({ error: "Uploads folder has reached 10GB size" });
+				queue.next();
+				return;
+			}
 			files = await getFilesData();
 			if (files.some(({ name }) => name === fileName)) {
 				res.status(409).send({ error: "File already exists" });
