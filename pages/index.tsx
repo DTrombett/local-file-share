@@ -2,140 +2,171 @@ import { faDownload, faTrashCan } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
-import { useState } from "react";
+import { Component } from "react";
 import DateComponent from "../components/DateComponent";
 import formatBytes from "../lib/formatBytes";
 import getFilesData from "../lib/getFilesData";
 import parseIp from "../lib/parseIp";
 import styles from "../styles/utils.module.css";
-import type { Files, HomeOptions, Props } from "../types";
+import type { ClientFileData, Files, HomeOptions, Props } from "../types";
 
 const description =
 		"Condividi file all'interno della stessa connessione in modo sicuro, privato e veloce",
 	title = "Local File Share";
 
-const Home = ({ filesData: initialFilesData, ip }: HomeOptions) => {
-	const [fileString, setFileString] = useState<string>("");
-	const [wrongIps, setWrongIps] = useState<boolean>(false);
-	const [filesData, setFilesData] = useState<Files>(initialFilesData);
-
-	const handleFiles = (fileList?: FileList | null) => {
-		if (!fileList) return;
-		const files = Array.from(fileList);
-
-		if (files.length)
-			if (files.some((file) => file.size > 1_073_741_824 /* 1GB */))
-				alert("Non puoi condividere file più grandi di 1GB!");
-			else
-				setFileString(
-					files
-						.map((file) => `${file.name} (${formatBytes(file.size)})`)
-						.join(", ")
-				);
+class Home extends Component {
+	state: {
+		file?: File;
+		wrongIps: boolean;
+		files: Files;
 	};
 
-	if (typeof document !== "undefined") {
-		document.addEventListener("drop", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			handleFiles(e.dataTransfer?.files);
-		});
-		document.addEventListener("dragover", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-		});
+	ip: number;
+
+	constructor(props: HomeOptions) {
+		super(props);
+
+		this.state = {
+			wrongIps: false,
+			files: props.filesData,
+		};
+		this.ip = props.ip;
+		if (typeof document !== "undefined") {
+			document.addEventListener("drop", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				this.handleFile(e.dataTransfer?.files[0]);
+			});
+			document.addEventListener("dragover", (e) => {
+				e.preventDefault();
+			});
+		}
 	}
-	return (
-		<>
-			<div className={styles.container}>
-				<Head>
-					<meta name="description" content={description} />
-					<meta name="og:title" content={title} />
-					<meta name="og:description" content={description} />
-					<meta name="twitter:card" content="summary" />
-					<meta name="twitter:description" content={description} />
-					<meta name="twitter:title" content={title} />
-					<title>{title}</title>
-				</Head>
-				<main>
-					<header className={styles.header}>
-						<h1 className={styles.heading2Xl}>{title}</h1>
-					</header>
-					<div className={`${styles.headingMd} ${styles.description}`}>
-						<p>
-							Condividi facilmente file con altri dispositivi connessi alla
-							stessa rete in modo sicuro, privato e veloce.
-						</p>
-					</div>
-					<div className={`${styles.optionsDiv} ${styles.centered} buttons`}>
-						<div className={`${styles.optionElement}`}>
-							<label
-								className={`button ${styles.fileInput}`}
-								htmlFor="fileInput"
+
+	setState(state: Partial<Home["state"]>) {
+		super.setState(state);
+	}
+
+	handleFile(file?: File) {
+		if (file && file.size > 1e9)
+			alert("Non puoi condividere file più grandi di 1GB!");
+		else this.setState({ file });
+	}
+
+	render() {
+		const { files, wrongIps, file } = this.state;
+
+		return (
+			<>
+				<div className={styles.container}>
+					<Head>
+						<meta name="description" content={description} />
+						<meta name="og:title" content={title} />
+						<meta name="og:description" content={description} />
+						<meta name="twitter:card" content="summary" />
+						<meta name="twitter:description" content={description} />
+						<meta name="twitter:title" content={title} />
+						<title>{title}</title>
+					</Head>
+					<main>
+						<header className={styles.header}>
+							<h1 className={styles.heading2Xl}>{title}</h1>
+						</header>
+						<div className={`${styles.headingMd} ${styles.description}`}>
+							<p>
+								Condividi facilmente file con altri dispositivi connessi alla
+								stessa rete in modo sicuro, privato e veloce.
+							</p>
+						</div>
+						<div className={`${styles.optionsDiv} ${styles.centered} buttons`}>
+							<div className={`${styles.optionElement}`}>
+								<label
+									className={`button ${styles.fileInput}`}
+									htmlFor="fileInput"
+								>
+									Scegli file...
+								</label>
+								<input
+									type="file"
+									accept="*/*"
+									id="fileInput"
+									className={styles.input}
+									onChange={(e) => {
+										this.handleFile(e.target.files?.[0]);
+									}}
+								/>
+								<div className={`${styles.fileName}`}>
+									{file ? `${file.name} (${formatBytes(file.size)})` : ""}
+								</div>
+							</div>
+							<div className={`${styles.optionElement} ${styles.ipsDiv}`}>
+								<label className={`${styles.ipsText}`} htmlFor="ips">
+									Codici dispositivo (facoltativo, il tuo è{" "}
+									{<strong>{this.ip}</strong>}):
+								</label>
+								<input
+									id="ips"
+									className={`${styles.ips} ${wrongIps ? styles.wrongIps : ""}`}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+
+										this.setState({
+											wrongIps: value.length
+												? value
+														.split(/\s*,\s*/)
+														.some((input) => !/^\d+$/.test(input))
+												: false,
+										});
+									}}
+								/>
+							</div>
+							<button
+								className={`button ${styles.upload} ${styles.optionElement}`}
+								onClick={() => {
+									if (!file) {
+										alert("Devi prima scegliere dei file!");
+										return;
+									}
+									if (wrongIps) {
+										alert(
+											"I codici dispositivo sono una lista di numeri dispositivo separati da virgola! Se non sai cosa sono puoi lasciare vuoto questo campo."
+										);
+										return;
+									}
+									const { value: ips } = document.getElementById(
+										"ips"
+									) as HTMLInputElement;
+									const formData = new FormData();
+									const xhr = new XMLHttpRequest();
+									const data: ClientFileData = {};
+
+									if (ips)
+										data.ips = ips.split(/\s*,\s*/).map((i) => Number(i));
+									formData.append("file1", file);
+									formData.append("data", JSON.stringify(data));
+									xhr.open("POST", `/api/files/${file.name}`);
+									xhr.upload.addEventListener(
+										"progress",
+										({ loaded, total }) => {
+											console.log(`${loaded}/${total}`);
+										}
+									);
+									xhr.send(formData);
+								}}
 							>
-								Scegli file...
-							</label>
-							<input
-								type="file"
-								multiple
-								accept="*/*"
-								id="fileInput"
-								className={styles.input}
-								onChange={(e) => {
-									handleFiles(e.target.files);
-								}}
-							/>
-							<div className={`${styles.fileName}`}>{fileString}</div>
+								Carica file
+							</button>
 						</div>
-						<div className={`${styles.optionElement} ${styles.ipsDiv}`}>
-							<label className={`${styles.ipsText}`} htmlFor="ips">
-								Codici dispositivo (facoltativo, il tuo è{" "}
-								{<strong>{ip}</strong>}):
-							</label>
-							<input
-								id="ips"
-								className={`${styles.ips} ${wrongIps ? styles.wrongIps : ""}`}
-								onChange={(e) => {
-									const value = e.target.value.trim();
-									setWrongIps(
-										value.length
-											? value
-													.split(/\s*,\s*/)
-													.some((input) => !/^\d+$/.test(input))
-											: false
-									);
-								}}
-							/>
-						</div>
-						<button
-							className={`button ${styles.upload} ${styles.optionElement}`}
-							onClick={() => {
-								if (!fileString) {
-									alert("Devi prima scegliere dei file!");
-									return;
-								}
-								if (wrongIps) {
-									alert(
-										"I codici dispositivo sono una lista di numeri dispositivo separati da virgola! Se non sai cosa sono puoi lasciare vuoto questo campo."
-									);
-									return;
-								}
-							}}
-						>
-							Carica file
-						</button>
-					</div>
-					<section className={`${styles.headingMd} ${styles.padding1px}`}>
-						<h2 className={styles.headingLg}>Files</h2>
-						<ul className={styles.list}>
-							{filesData.map(({ date, name, size, owner }, i) => (
-								<>
+						<section className={`${styles.headingMd} ${styles.padding1px}`}>
+							<h2 className={styles.headingLg}>Files</h2>
+							<ul className={styles.list}>
+								{files.map(({ date, name, size, owner }, i) => (
 									<li className={styles.listItem} key={name}>
 										<a href={`/api/files/${name}`}>
 											{name} ({formatBytes(size)})
 										</a>
 										<span className={`${styles.actionButtons}`}>
-											{owner === ip && (
+											{owner === this.ip && (
 												<button
 													className={`button ${styles.actionButton}`}
 													onClick={() => {
@@ -145,9 +176,9 @@ const Home = ({ filesData: initialFilesData, ip }: HomeOptions) => {
 															)
 														)
 															return;
-														setFilesData(
-															filesData.filter((file) => file.name !== name)
-														);
+														this.setState({
+															files: files.filter((f) => f.name !== name),
+														});
 														fetch(`/api/files/${name}`, {
 															method: "DELETE",
 														}).catch(() => {
@@ -169,25 +200,25 @@ const Home = ({ filesData: initialFilesData, ip }: HomeOptions) => {
 										<small className={styles.lightText}>
 											<DateComponent timestamp={date} />
 										</small>
+										{i !== files.length - 1 && <hr />}
 									</li>
-									{i !== filesData.length - 1 && <hr />}
-								</>
-							))}
-						</ul>
-					</section>
-				</main>
-			</div>
-			<footer className="footer">
-				<i>
-					Da un idea di D Trombett. Progetto realizzato in JavaScript e{" "}
-					{<a href="https://www.typescriptlang.org/">TypeScript</a>} grazie a{" "}
-					{<a href="https://reactjs.org/">React</a>} e{" "}
-					{<a href="https://nextjs.org/">Next.js</a>}
-				</i>
-			</footer>
-		</>
-	);
-};
+								))}
+							</ul>
+						</section>
+					</main>
+				</div>
+				<footer className="footer">
+					<i>
+						Da un idea di D Trombett. Progetto realizzato in JavaScript e{" "}
+						{<a href="https://www.typescriptlang.org/">TypeScript</a>} grazie a{" "}
+						{<a href="https://reactjs.org/">React</a>} e{" "}
+						{<a href="https://nextjs.org/">Next.js</a>}
+					</i>
+				</footer>
+			</>
+		);
+	}
+}
 
 export const getServerSideProps: GetServerSideProps = async ({
 	req,

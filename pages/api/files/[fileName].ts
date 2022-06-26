@@ -1,3 +1,5 @@
+import type { Fields, Files } from "formidable";
+import { IncomingForm } from "formidable";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createReadStream } from "node:fs";
 import { stat, unlink, writeFile } from "node:fs/promises";
@@ -6,7 +8,7 @@ import { join } from "node:path";
 import { cwd } from "node:process";
 import getFilesData from "../../../lib/getFilesData";
 import parseIp from "../../../lib/parseIp";
-import type { FileData } from "../../../types";
+import type { ClientFileData, FileData } from "../../../types";
 
 /**
  * A queue to wait for an action to be completed before continuing
@@ -40,6 +42,12 @@ class Queue {
 }
 
 const queue = new Queue();
+
+export const config = {
+	api: {
+		bodyParser: false,
+	},
+};
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 	const { fileName } = req.query as { fileName: string };
@@ -94,6 +102,83 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 			});
 
 			if (!results) {
+				res.status(500).end();
+				queue.next();
+				return;
+			}
+			res.status(204).end();
+			queue.next();
+			break;
+		case "POST":
+			await queue.wait();
+			files = await getFilesData();
+			if (files.some(({ name }) => name === fileName)) {
+				res.status(409).end();
+				queue.next();
+				return;
+			}
+			const form = new IncomingForm({
+				keepExtensions: true,
+				maxFiles: 1,
+				maxFields: 1,
+				maxFileSize: 1e9,
+				uploadDir: join(cwd(), ".files/uploads"),
+			});
+			const formData = await new Promise<[Fields, Files]>((resolve, reject) => {
+				form.parse(req, (err, ...args) => {
+					if (typeof err !== "undefined") {
+						reject(err);
+						return;
+					}
+					resolve(args);
+				});
+			}).catch((err) => {
+				console.error(err);
+			});
+
+			if (!formData) {
+				res.status(500).end();
+				queue.next();
+				return;
+			}
+			const [{ data }, { file1 }] = formData;
+
+			if (typeof data !== "string") {
+				res.status(400).end();
+				queue.next();
+				return;
+			}
+			if (typeof file1 !== "object" || !("size" in file1)) {
+				res.status(400).end();
+				queue.next();
+				return;
+			}
+			const clientFileData = JSON.parse(data) as ClientFileData;
+
+			if (typeof clientFileData !== "object") {
+				res.status(400).end();
+				queue.next();
+				return;
+			}
+			const fileData: FileData = {
+				date: file1.mtime?.getTime() ?? Date.now(),
+				name: fileName,
+				owner: ip,
+				size: file1.size,
+				type: file1.mimetype ?? "application/octet-stream",
+				ips: clientFileData.ips,
+			};
+
+			files.push(fileData);
+			const failed = await writeFile(
+				join(cwd(), ".files/files.json"),
+				JSON.stringify(files)
+			).catch((err) => {
+				console.error(err);
+				return true;
+			});
+
+			if (failed === true) {
 				res.status(500).end();
 				queue.next();
 				return;

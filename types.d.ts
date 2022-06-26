@@ -3,10 +3,12 @@ export type HomeOptions = {
 	filesData: Files;
 	ip: number;
 };
-export type FileData = {
+export type ClientFileData = {
+	ips?: number[];
+};
+export type FileData = ClientFileData & {
 	date: number;
 	name: string;
-	ips?: number[];
 	size: number;
 	type: string;
 	owner: number;
