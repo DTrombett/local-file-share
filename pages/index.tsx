@@ -1,10 +1,8 @@
-import { faDownload, faTrashCan } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import ms from "ms";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import { Component } from "react";
-import DateComponent from "../components/DateComponent";
+import FilePreview from "../components/FilePreview";
 import formatBytes from "../lib/formatBytes";
 import getFilesData from "../lib/getFilesData";
 import parseIp from "../lib/parseIp";
@@ -23,6 +21,7 @@ class Home extends Component {
 			progress: number;
 			total: number;
 		};
+		error?: string;
 		speed?: number;
 		wrongIps: boolean;
 		duration?: number;
@@ -95,6 +94,8 @@ class Home extends Component {
 				total: file.size,
 			},
 			speed: undefined,
+			duration: undefined,
+			error: undefined,
 		});
 		const { value: ips } = document.getElementById("ips") as HTMLInputElement;
 		const formData = new FormData();
@@ -125,17 +126,43 @@ class Home extends Component {
 		});
 		xhr.addEventListener("load", () => {
 			clearInterval(interval);
-			this.setState({
-				files: [...files, JSON.parse(xhr.responseText)],
-				duration: Date.now() - this.startUploadTime!,
-			});
+			switch (xhr.status) {
+				case 200:
+					this.setState({
+						files: [...files, JSON.parse(xhr.responseText)],
+						duration: Date.now() - this.startUploadTime!,
+					});
+					break;
+				case 500:
+					this.setState({
+						error: "Il file non può essere caricato al momento",
+					});
+					break;
+				case 403:
+					this.setState({
+						error: "Il totale dei file caricati supera i 10GB",
+					});
+					break;
+				case 409:
+					this.setState({
+						error: "Esiste già un file con questo nome",
+					});
+					break;
+				case 400:
+					this.setState({
+						error: "Si è verificato un errore durante il caricamento dei dati",
+					});
+					break;
+				default:
+			}
 			this.startUploadTime = undefined;
 		});
 		xhr.send(formData);
 	}
 
 	render() {
-		const { file, files, upload, wrongIps, speed, duration } = this.state;
+		const { file, files, upload, wrongIps, speed, duration, error } =
+			this.state;
 
 		return (
 			<>
@@ -204,25 +231,32 @@ class Home extends Component {
 							{upload && (
 								<div className={`${styles.progress}`}>
 									<span>
-										{upload.progress === upload.total
-											? `Caricamento completato in ${ms(
-													duration ?? 1000
-											  )} (${formatBytes(
-													(upload.total * 1000) / (duration ?? 1000)
-											  )}/s)`
-											: `Caricando ${formatBytes(
-													upload.progress,
-													false
-											  )}/${formatBytes(upload.total, false)} (${Math.round(
-													(upload.progress / upload.total) * 100
-											  )}%) - ${formatBytes(
-													speed ?? upload.progress,
-													false
-											  )}/s`}
+										{error ??
+											(upload.progress === upload.total
+												? `Caricamento completato in ${ms(
+														duration ?? 1000
+												  )} (${formatBytes(
+														(upload.total * 1000) / (duration ?? 1000)
+												  )}/s)`
+												: `Caricando ${formatBytes(
+														upload.progress,
+														false
+												  )}/${formatBytes(upload.total, false)} (${Math.round(
+														(upload.progress / upload.total) * 100
+												  )}%) - ${formatBytes(
+														speed ?? upload.progress,
+														false
+												  )}/s`)}
 									</span>
 									<div className={`${styles.progressBar}`}>
 										<div
-											className={`${styles.progressBarFill}`}
+											className={`${styles.progressBarFill} ${
+												error !== undefined
+													? styles.uploadError
+													: upload.progress === upload.total
+													? styles.uploadComplete
+													: ""
+											}`}
 											style={{
 												width: `${(upload.progress / upload.total) * 100}%`,
 											}}
@@ -235,49 +269,30 @@ class Home extends Component {
 							<h2 className={styles.headingLg}>Files</h2>
 							{files.length ? (
 								<ul className={styles.list}>
-									{files.map(({ date, name, size, owner }, i) => (
-										// TODO: Create a component for this
-										<li className={styles.listItem} key={name}>
-											<a href={`/api/files/${name}`}>
-												{name} ({formatBytes(size)})
-											</a>
-											<span className={`${styles.actionButtons}`}>
-												{(owner === this.ip || this.ip === 1) && (
-													<button
-														className={`button ${styles.actionButton}`}
-														onClick={() => {
-															if (
-																!confirm(
-																	`Sei sicuro di voler eliminare "${name}"?`
-																)
-															)
-																return;
-															this.setState({
-																files: files.filter((f) => f.name !== name),
-															});
-															fetch(`/api/files/${name}`, {
-																method: "DELETE",
-															}).catch(() => {
-																// Ignore
-															});
-														}}
-													>
-														<FontAwesomeIcon icon={faTrashCan} />
-													</button>
-												)}
-												<a
-													className={`button ${styles.actionButton}`}
-													href={`/api/files/${name}?download=true`}
-												>
-													<FontAwesomeIcon icon={faDownload} />
-												</a>
-											</span>
-											<br />
-											<small className={styles.lightText}>
-												<DateComponent timestamp={date} />
-											</small>
-											{i !== files.length - 1 && <hr />}
-										</li>
+									{files.map((fileData, i) => (
+										<FilePreview
+											fileData={fileData}
+											files={files}
+											i={i}
+											ip={this.ip}
+											onClick={() => {
+												if (
+													!confirm(
+														`Sei sicuro di voler eliminare "${fileData.name}"?`
+													)
+												)
+													return;
+												this.setState({
+													files: files.filter((f) => f.name !== fileData.name),
+												});
+												fetch(`/api/files/${fileData.name}`, {
+													method: "DELETE",
+												}).catch(() => {
+													// Ignore
+												});
+											}}
+											key={fileData.name}
+										/>
 									))}
 								</ul>
 							) : (

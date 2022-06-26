@@ -1,3 +1,5 @@
+import type { MouseEventHandler } from "react";
+
 export type DateOptions = { timestamp: number };
 export type HomeOptions = {
 	filesData: Files;
@@ -17,3 +19,10 @@ export type Props<T> = {
 	props: T;
 };
 export type Files = FileData[];
+export type FileOptions = {
+	fileData: FileData;
+	i: number;
+	ip: number;
+	files: Files;
+	onClick: MouseEventHandler<HTMLButtonElement>;
+};

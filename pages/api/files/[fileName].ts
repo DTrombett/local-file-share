@@ -47,6 +47,7 @@ const queue = new Queue();
 export const config = {
 	api: {
 		bodyParser: false,
+		responseLimit: 1e9,
 	},
 };
 
@@ -121,17 +122,20 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
 			if (!stats) {
 				res.status(500).end();
+				req.destroy();
 				queue.next();
 				return;
 			}
 			if (stats.size > 1e10) {
 				res.status(403).send({ error: "Uploads folder has reached 10GB size" });
+				req.destroy();
 				queue.next();
 				return;
 			}
 			files = await getFilesData();
 			if (files.some(({ name }) => name === fileName)) {
 				res.status(409).send({ error: "File already exists" });
+				req.destroy();
 				queue.next();
 				return;
 			}
@@ -157,6 +161,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
 			if (!formData) {
 				res.status(400).send({ error: "Couldn't parse form data" });
+				req.destroy();
 				queue.next();
 				return;
 			}
@@ -166,11 +171,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 				res
 					.status(400)
 					.send({ error: "Param 'data' should be a stringified JSON" });
+				req.destroy();
 				queue.next();
 				return;
 			}
 			if (typeof file1 !== "object" || !("size" in file1)) {
 				res.status(400).send({ error: "Param 'file1' should be a file" });
+				req.destroy();
 				queue.next();
 				return;
 			}
@@ -183,6 +190,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 			} catch (error) {
 				console.error(error);
 				res.status(400).send({ error: "Couldn't parse data" });
+				req.destroy();
 				queue.next();
 				return;
 			}
@@ -206,6 +214,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
 			if (failed === true) {
 				res.status(500).end();
+				req.destroy();
 				queue.next();
 				return;
 			}
