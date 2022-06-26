@@ -17,8 +17,13 @@ const description =
 class Home extends Component {
 	state: {
 		file?: File;
-		wrongIps: boolean;
 		files: Files;
+		upload?: {
+			progress: number;
+			total: number;
+		};
+		speed?: number;
+		wrongIps: boolean;
 	};
 
 	ip: number;
@@ -27,8 +32,8 @@ class Home extends Component {
 		super(props);
 
 		this.state = {
-			wrongIps: false,
 			files: props.filesData,
+			wrongIps: false,
 		};
 		this.ip = props.ip;
 		if (typeof document !== "undefined") {
@@ -50,11 +55,80 @@ class Home extends Component {
 	handleFile(file?: File) {
 		if (file && file.size > 1e9)
 			alert("Non puoi condividere file più grandi di 1GB!");
-		else this.setState({ file });
+		else this.setState({ file, upload: undefined });
+	}
+
+	validateIps(value: string) {
+		value = value.trim();
+		this.setState({
+			wrongIps: value.length
+				? value.split(/\s*,\s*/).some((input) => !/^\d+$/.test(input))
+				: false,
+		});
+	}
+
+	uploadFile() {
+		const { file, files, upload, wrongIps } = this.state;
+
+		if (upload) return;
+		if (!file) {
+			alert("Devi prima scegliere dei file!");
+			return;
+		}
+		if (files.some((f) => f.name === file.name)) {
+			alert("Esiste già un file con questo nome!");
+			return;
+		}
+		if (wrongIps) {
+			alert(
+				"I codici dispositivo sono una lista di numeri dispositivo separati da virgola! Se non sai cosa sono puoi lasciare vuoto questo campo."
+			);
+			return;
+		}
+		this.setState({
+			upload: {
+				progress: 0,
+				total: file.size,
+			},
+			speed: undefined,
+		});
+		const { value: ips } = document.getElementById("ips") as HTMLInputElement;
+		const formData = new FormData();
+		const xhr = new XMLHttpRequest();
+		const data: ClientFileData = {};
+		let lastLoaded = 0,
+			oldLoaded = 0;
+		const interval = setInterval(() => {
+			this.setState({
+				speed: lastLoaded - oldLoaded,
+			});
+			oldLoaded = lastLoaded;
+		}, 1000);
+
+		if (ips) data.ips = ips.split(/\s*,\s*/).map((i) => Number(i));
+		formData.append("file1", file);
+		formData.append("data", JSON.stringify(data));
+		xhr.open("POST", `/api/files/${file.name}`);
+		xhr.upload.addEventListener("progress", ({ loaded, total }) => {
+			this.setState({
+				upload: {
+					progress: loaded,
+					total,
+				},
+			});
+			lastLoaded = loaded;
+		});
+		xhr.addEventListener("load", () => {
+			this.setState({
+				files: [...files, JSON.parse(xhr.responseText)],
+			});
+			clearInterval(interval);
+		});
+		xhr.send(formData);
 	}
 
 	render() {
-		const { files, wrongIps, file } = this.state;
+		const { file, files, upload, wrongIps, speed } = this.state;
 
 		return (
 			<>
@@ -108,59 +182,44 @@ class Home extends Component {
 									id="ips"
 									className={`${styles.ips} ${wrongIps ? styles.wrongIps : ""}`}
 									onChange={(e) => {
-										const value = e.target.value.trim();
-
-										this.setState({
-											wrongIps: value.length
-												? value
-														.split(/\s*,\s*/)
-														.some((input) => !/^\d+$/.test(input))
-												: false,
-										});
+										this.validateIps(e.target.value);
 									}}
 								/>
 							</div>
 							<button
 								className={`button ${styles.upload} ${styles.optionElement}`}
 								onClick={() => {
-									if (!file) {
-										alert("Devi prima scegliere dei file!");
-										return;
-									}
-									if (wrongIps) {
-										alert(
-											"I codici dispositivo sono una lista di numeri dispositivo separati da virgola! Se non sai cosa sono puoi lasciare vuoto questo campo."
-										);
-										return;
-									}
-									const { value: ips } = document.getElementById(
-										"ips"
-									) as HTMLInputElement;
-									const formData = new FormData();
-									const xhr = new XMLHttpRequest();
-									const data: ClientFileData = {};
-
-									if (ips)
-										data.ips = ips.split(/\s*,\s*/).map((i) => Number(i));
-									formData.append("file1", file);
-									formData.append("data", JSON.stringify(data));
-									xhr.open("POST", `/api/files/${file.name}`);
-									xhr.upload.addEventListener(
-										"progress",
-										({ loaded, total }) => {
-											console.log(`${loaded}/${total}`);
-										}
-									);
-									xhr.send(formData);
+									this.uploadFile();
 								}}
 							>
 								Carica file
 							</button>
+							{upload && (
+								<div className={`${styles.progress}`}>
+									<span>
+										Caricamento{" "}
+										{upload.progress === upload.total
+											? "completato!"
+											: `(${formatBytes(upload.progress)}/${formatBytes(
+													upload.total
+											  )} - ${formatBytes(speed ?? upload.progress)}/s)`}
+									</span>
+									<div className={`${styles.progressBar}`}>
+										<div
+											className={`${styles.progressBarFill}`}
+											style={{
+												width: `${(upload.progress / upload.total) * 100}%`,
+											}}
+										></div>
+									</div>
+								</div>
+							)}
 						</div>
 						<section className={`${styles.headingMd} ${styles.padding1px}`}>
 							<h2 className={styles.headingLg}>Files</h2>
 							<ul className={styles.list}>
 								{files.map(({ date, name, size, owner }, i) => (
+									// TODO: Create a component for this
 									<li className={styles.listItem} key={name}>
 										<a href={`/api/files/${name}`}>
 											{name} ({formatBytes(size)})

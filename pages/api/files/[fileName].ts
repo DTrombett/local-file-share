@@ -113,7 +113,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 			await queue.wait();
 			files = await getFilesData();
 			if (files.some(({ name }) => name === fileName)) {
-				res.status(409).end();
+				res.status(409).send({ error: "File already exists" });
 				queue.next();
 				return;
 			}
@@ -123,10 +123,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 				maxFields: 1,
 				maxFileSize: 1e9,
 				uploadDir: join(cwd(), ".files/uploads"),
+				filename: () => fileName,
 			});
 			const formData = await new Promise<[Fields, Files]>((resolve, reject) => {
 				form.parse(req, (err, ...args) => {
-					if (typeof err !== "undefined") {
+					if (err as Error | null) {
 						reject(err);
 						return;
 					}
@@ -137,26 +138,33 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 			});
 
 			if (!formData) {
-				res.status(500).end();
+				res.status(400).send({ error: "Couldn't parse form data" });
 				queue.next();
 				return;
 			}
 			const [{ data }, { file1 }] = formData;
 
 			if (typeof data !== "string") {
-				res.status(400).end();
+				res
+					.status(400)
+					.send({ error: "Param 'data' should be a stringified JSON" });
 				queue.next();
 				return;
 			}
 			if (typeof file1 !== "object" || !("size" in file1)) {
-				res.status(400).end();
+				res.status(400).send({ error: "Param 'file1' should be a file" });
 				queue.next();
 				return;
 			}
-			const clientFileData = JSON.parse(data) as ClientFileData;
+			let clientFileData: ClientFileData;
 
-			if (typeof clientFileData !== "object") {
-				res.status(400).end();
+			try {
+				clientFileData = JSON.parse(data);
+				if (typeof clientFileData !== "object")
+					throw new TypeError("Data should be an object");
+			} catch (error) {
+				console.error(error);
+				res.status(400).send({ error: "Couldn't parse data" });
 				queue.next();
 				return;
 			}
@@ -183,7 +191,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 				queue.next();
 				return;
 			}
-			res.status(204).end();
+			res.status(200).send(fileData);
 			queue.next();
 			break;
 		default:
