@@ -56,8 +56,8 @@ class Home extends Component {
 	}
 
 	handleFile(file?: File) {
-		if (file && file.size > 1e9)
-			alert("Non puoi condividere file più grandi di 1GB!");
+		if (file && file.size > 1e10)
+			alert("Non puoi condividere file più grandi di 10GB!");
 		else this.setState({ file, upload: undefined });
 	}
 

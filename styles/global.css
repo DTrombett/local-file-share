@@ -1,3 +1,14 @@
+:root {
+	--primary-color: #202020;
+	--footer-color: #404040;
+	--footer-text-color: #b0b0b0;
+	--tertiary-color: #363636;
+	--button-hover-color: #2a2a2a;
+	--bold-color: #c0c0c0;
+	--text-color: #d0d0d0;
+	--link-color: #f0f0f0;
+}
+
 html,
 body {
 	padding: 0;
@@ -5,17 +16,12 @@ body {
 	font-family: Roboto, Arial, sans-serif;
 	line-height: 1.6;
 	font-size: 18px;
-	background-color: var(--background-color);
-	color: var(--color);
+	background-color: var(--primary-color);
+	color: var(--text-color);
 }
 
 * {
 	box-sizing: border-box;
-	--background-color: #202020;
-	--color: #d0d0d0;
-	--link-color: #f0f0f0;
-	--link-hover-color: #f0f0f0;
-	--light-color: #c0c0c0;
 }
 
 a {
@@ -25,21 +31,15 @@ a {
 
 a:hover {
 	text-decoration: underline;
-	color: var(--link-hover-color);
-}
-
-img {
-	max-width: 100%;
-	display: block;
+	color: var(--link-color);
 }
 
 footer {
 	text-align: center;
-	background-color: #404040 !important;
-	color: #b0b0b0;
+	background-color: var(--footer-color) !important;
+	color: var(--footer-text-color);
 }
 
 strong {
-	font-weight: bold;
-	color: var(--light-color);
+	color: var(--bold-color);
 }

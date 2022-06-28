@@ -47,7 +47,7 @@ const queue = new Queue();
 export const config = {
 	api: {
 		bodyParser: false,
-		responseLimit: 1e9,
+		responseLimit: 1e10,
 	},
 };
 
@@ -143,7 +143,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 				keepExtensions: true,
 				maxFiles: 1,
 				maxFields: 1,
-				maxFileSize: 1e9,
+				maxFileSize: 1e10,
 				uploadDir: join(cwd(), ".files/uploads"),
 				filename: () => fileName,
 			});
