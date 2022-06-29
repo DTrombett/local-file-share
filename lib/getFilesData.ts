@@ -12,10 +12,7 @@ const filesJson = join(cwd(), ".files/files.json");
 const getFilesData = async (ip = 0): Promise<Files> => {
 	const files = JSON.parse(await readFile(filesJson, "utf8")) as Files;
 
-	if (ip < 2) return files;
-	return files.filter(
-		({ ips, owner }) => (ips?.includes(ip) ?? true) || owner === ip
-	);
+	return ip ? files.filter(({ ip: targetIp }) => ip === targetIp) : files;
 };
 
 export default getFilesData;

@@ -7,7 +7,7 @@ import formatBytes from "../lib/formatBytes";
 import getFilesData from "../lib/getFilesData";
 import parseIp from "../lib/parseIp";
 import styles from "../styles/utils.module.css";
-import type { ClientFileData, Files, HomeOptions, Props } from "../types";
+import type { Files, HomeOptions, Props } from "../types";
 
 const description =
 		"Condividi file all'interno della stessa connessione in modo sicuro, privato e veloce",
@@ -23,7 +23,7 @@ class Home extends Component {
 		};
 		error?: string;
 		speed?: number;
-		wrongIps: boolean;
+		wrongIp: boolean;
 		duration?: number;
 	};
 
@@ -36,7 +36,7 @@ class Home extends Component {
 
 		this.state = {
 			files: props.filesData,
-			wrongIps: false,
+			wrongIp: true,
 		};
 		this.ip = props.ip;
 		if (typeof document !== "undefined") {
@@ -61,31 +61,22 @@ class Home extends Component {
 		else this.setState({ file, upload: undefined });
 	}
 
-	validateIps(value: string) {
-		value = value.trim();
+	validateIp(value: string) {
 		this.setState({
-			wrongIps: value.length
-				? value.split(/\s*,\s*/).some((input) => !/^\d+$/.test(input))
-				: false,
+			wrongIp: value === "0" || !/^\d+$/.test(value),
 		});
 	}
 
 	uploadFile() {
-		const { file, files, upload, wrongIps } = this.state;
+		const { file, upload, wrongIp } = this.state;
 
 		if (upload) return;
 		if (!file) {
-			alert("Devi prima scegliere dei file!");
+			alert("Devi prima scegliere il file da condividere!");
 			return;
 		}
-		if (files.some((f) => f.name === file.name)) {
-			alert("Esiste già un file con questo nome!");
-			return;
-		}
-		if (wrongIps) {
-			alert(
-				"I codici dispositivo sono una lista di numeri dispositivo separati da virgola! Se non sai cosa sono puoi lasciare vuoto questo campo."
-			);
+		if (wrongIp) {
+			alert("Devi specificare un valido dispositivo a cui inviare il file!");
 			return;
 		}
 		this.setState({
@@ -97,10 +88,8 @@ class Home extends Component {
 			duration: undefined,
 			error: undefined,
 		});
-		const { value: ips } = document.getElementById("ips") as HTMLInputElement;
-		const formData = new FormData();
+		const { value: ip } = document.getElementById("ip") as HTMLInputElement;
 		const xhr = new XMLHttpRequest();
-		const data: ClientFileData = {};
 		let lastLoaded = 0,
 			oldLoaded = 0;
 		const interval = setInterval(() => {
@@ -111,10 +100,7 @@ class Home extends Component {
 		}, 1000);
 
 		this.startUploadTime = Date.now();
-		if (ips) data.ips = ips.split(/\s*,\s*/).map((i) => Number(i));
-		formData.append("file1", file);
-		formData.append("data", JSON.stringify(data));
-		xhr.open("POST", `/api/files/${file.name}`);
+		xhr.open("POST", `/api/files/${file.name}?ip=${ip}`);
 		xhr.upload.addEventListener("progress", ({ loaded, total }) => {
 			this.setState({
 				upload: {
@@ -129,18 +115,12 @@ class Home extends Component {
 			switch (xhr.status) {
 				case 200:
 					this.setState({
-						files: [...files, JSON.parse(xhr.responseText)],
 						duration: Date.now() - this.startUploadTime!,
 					});
 					break;
 				case 500:
 					this.setState({
 						error: "Il file non può essere caricato al momento",
-					});
-					break;
-				case 403:
-					this.setState({
-						error: "Il totale dei file caricati supera i 10GB",
 					});
 					break;
 				case 409:
@@ -157,12 +137,11 @@ class Home extends Component {
 			}
 			this.startUploadTime = undefined;
 		});
-		xhr.send(formData);
+		xhr.send(file);
 	}
 
 	render() {
-		const { file, files, upload, wrongIps, speed, duration, error } =
-			this.state;
+		const { file, files, upload, wrongIp, speed, duration, error } = this.state;
 
 		return (
 			<>
@@ -208,16 +187,16 @@ class Home extends Component {
 								</div>
 							</div>
 							<div className={`${styles.optionElement} ${styles.ipsDiv}`}>
-								<label className={`${styles.ipsText}`} htmlFor="ips">
-									Codici dispositivo (facoltativo, il tuo è{" "}
-									{<strong>{this.ip}</strong>}):
+								<label className={`${styles.ipsText}`} htmlFor="ip">
+									N° dispositivo (il tuo è {<strong>{this.ip}</strong>}):
 								</label>
 								<input
-									id="ips"
-									className={`${styles.ips} ${wrongIps ? styles.wrongIps : ""}`}
+									id="ip"
+									className={`${styles.ips} ${wrongIp ? styles.wrongIp : ""}`}
 									onChange={(e) => {
-										this.validateIps(e.target.value);
+										this.validateIp(e.target.value);
 									}}
+									type="number"
 								/>
 							</div>
 							<button
@@ -226,7 +205,7 @@ class Home extends Component {
 									this.uploadFile();
 								}}
 							>
-								Carica file
+								Invia file
 							</button>
 							{upload && (
 								<div className={`${styles.progress}`}>
@@ -266,37 +245,19 @@ class Home extends Component {
 							)}
 						</div>
 						<section className={`${styles.headingMd} ${styles.padding1px}`}>
-							<h2 className={styles.headingLg}>Files</h2>
+							<h2 className={styles.headingLg}>File condivisi con te</h2>
 							{files.length ? (
 								<ul className={styles.list}>
 									{files.map((fileData, i) => (
 										<FilePreview
 											fileData={fileData}
-											files={files}
-											i={i}
-											ip={this.ip}
-											onClick={() => {
-												if (
-													!confirm(
-														`Sei sicuro di voler eliminare "${fileData.name}"?`
-													)
-												)
-													return;
-												this.setState({
-													files: files.filter((f) => f.name !== fileData.name),
-												});
-												fetch(`/api/files/${fileData.name}`, {
-													method: "DELETE",
-												}).catch(() => {
-													// Ignore
-												});
-											}}
 											key={fileData.name}
+											last={i === files.length - 1}
 										/>
 									))}
 								</ul>
 							) : (
-								"Nessun file disponibile"
+								"Nessun file presente"
 							)}
 						</section>
 					</main>

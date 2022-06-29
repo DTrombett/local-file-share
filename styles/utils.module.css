@@ -69,14 +69,15 @@
 	color: inherit;
 	font-size: medium;
 	border-radius: 5px;
+	width: 3rem;
 }
 
 .ipsText {
 	vertical-align: middle;
 }
 
-.wrongIps {
-	border-color: #ff0000 !important;
+.wrongIp {
+	border-color: #c00000 !important;
 }
 
 .fileInput {

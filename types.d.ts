@@ -1,19 +1,16 @@
-import type { MouseEventHandler } from "react";
-
 export type DateOptions = { timestamp: number };
 export type HomeOptions = {
 	filesData: Files;
 	ip: number;
 };
 export type ClientFileData = {
-	ips?: number[];
+	ip: number;
 };
 export type FileData = ClientFileData & {
 	date: number;
 	name: string;
 	size: number;
 	type: string;
-	owner: number;
 };
 export type Props<T> = {
 	props: T;
@@ -21,8 +18,5 @@ export type Props<T> = {
 export type Files = FileData[];
 export type FileOptions = {
 	fileData: FileData;
-	i: number;
-	ip: number;
-	files: Files;
-	onClick: MouseEventHandler<HTMLButtonElement>;
+	last: boolean;
 };
