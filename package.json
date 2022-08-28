@@ -41,7 +41,7 @@
 		"@types/ms": "^0.7.31",
 		"@types/node": "^18.0.0",
 		"@types/react": "^18.0.9",
-		"@typescript-eslint/eslint-plugin": "^5.23.0",
+		"@typescript-eslint/eslint-plugin": "^5.35.1",
 		"eslint": "8.18.0",
 		"eslint-config-next": "12.1.6",
 		"eslint-plugin-import": "^2.26.0",
