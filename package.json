@@ -37,7 +37,7 @@
 	"devDependencies": {
 		"@next/eslint-plugin-next": "^12.1.5",
 		"@tsconfig/node14": "^1.0.1",
-		"@types/formidable": "^2.0.5",
+		"@types/formidable": "^2.0.6",
 		"@types/ms": "^0.7.31",
 		"@types/node": "^20.2.5",
 		"@types/react": "^18.2.7",
