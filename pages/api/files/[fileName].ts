@@ -4,7 +4,6 @@ import type { OutgoingHttpHeaders } from "node:http";
 import { join } from "node:path";
 import { cwd } from "node:process";
 import getFilesData from "../../../lib/getFilesData";
-import parseIp from "../../../lib/parseIp";
 import type { FileData } from "../../../types";
 
 /**
@@ -47,68 +46,20 @@ export const config = {
 
 const queue = new Queue();
 const incomingRequests: NextApiRequest[] = [];
+const storage = join(cwd(), ".files/files.json");
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-	const { fileName } = req.query as { fileName: string };
-	const ip = parseIp(req.socket.remoteAddress);
-	let file: FileData | undefined, files: FileData[];
+	const { fileName, password } = req.query as {
+		fileName: string;
+		password?: string;
+	};
 
 	switch (req.method) {
-		case "GET":
-			file = (await getFilesData(ip)).find(({ name }) => name === fileName);
-
-			if (!file) {
-				res.status(404).end();
-				return;
-			}
-			const headers: OutgoingHttpHeaders = {
-				"Content-Type": file.type,
-				"Content-Length": file.size,
-			};
-
-			if (req.query.download === "true")
-				headers["Content-Disposition"] = `attachment; filename="${file.name}"`;
-			const iReq = incomingRequests.find(
-				(r) => r.query.fileName === fileName && Number(r.query.ip) === ip
-			);
-
-			if (!iReq) {
-				res.status(404).end();
-				return;
-			}
-			res.writeHead(200, headers);
-			iReq.socket.resume();
-			iReq.pipe(res);
-			iReq.on("end", async () => {
-				incomingRequests.splice(incomingRequests.indexOf(iReq), 1);
-				await queue.wait();
-				files = await getFilesData();
-				await writeFile(
-					join(cwd(), ".files/files.json"),
-					JSON.stringify(
-						files.filter(
-							({ ip: targetIp, name }) => ip !== targetIp || name !== fileName
-						)
-					)
-				);
-				queue.next();
-			});
-			break;
-		case "POST":
+		case "POST": {
 			await queue.wait();
-			files = await getFilesData();
-			const targetIp = Number(req.query.ip);
+			let files = await getFilesData();
 
-			if (isNaN(targetIp) || targetIp < 1 || targetIp > 255) {
-				res.status(400).send({ error: "Invalid IP" });
-				req.destroy();
-				return;
-			}
-			if (
-				files.some(
-					({ name, ip: fileIp }) => name === fileName && targetIp === fileIp
-				)
-			) {
+			if (files.some(({ name }) => name === fileName)) {
 				res.status(409).send({ error: "File already exists" });
 				req.destroy();
 				queue.next();
@@ -123,8 +74,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 			}
 			const type = req.headers["content-type"];
 
-			// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-			if (!type) {
+			if (type == null) {
 				res.status(400).send({ error: "Invalid file type" });
 				req.destroy();
 				return;
@@ -134,30 +84,71 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 				name: fileName,
 				size,
 				type,
-				ip: targetIp,
+				password,
 			};
 
 			files.push(fileData);
-			const failed: true | void = await writeFile(
-				join(cwd(), ".files/files.json"),
-				JSON.stringify(files)
-			)
-				.catch((err) => {
+			const failed = await writeFile(storage, JSON.stringify(files)).catch(
+				(err) => {
 					console.error(err);
 					return true as const;
-				})
-				.finally(() => {
-					queue.next();
-				});
+				}
+			);
 
+			queue.next();
+			req.on("close", async () => {
+				incomingRequests.splice(incomingRequests.indexOf(req), 1);
+				await queue.wait();
+				files = await getFilesData();
+
+				await writeFile(
+					storage,
+					JSON.stringify(files.filter(({ name }) => name !== fileName))
+				);
+				queue.next();
+			});
 			if (failed) {
 				res.status(500).end();
 				req.destroy();
 				return;
 			}
 			incomingRequests.push(req);
-			req.socket.pause();
 			break;
+		}
+		case "GET": {
+			const files = await getFilesData();
+			const file = files.find(({ name }) => name === fileName);
+
+			if (!file) {
+				res.status(404).end();
+				return;
+			}
+			const iReq = incomingRequests.find((r) => r.query.fileName === fileName);
+
+			if (!iReq) {
+				await writeFile(
+					storage,
+					JSON.stringify(files.filter((el) => el !== file))
+				);
+				res.status(404).end();
+				return;
+			}
+			if (file.password !== undefined && file.password !== password) {
+				res.status(401).end();
+				return;
+			}
+			const headers: OutgoingHttpHeaders = {
+				"Content-Type": file.type,
+				"Content-Length": file.size,
+			};
+
+			if (req.query.download === "true")
+				headers["Content-Disposition"] = `attachment; filename="${file.name}"`;
+
+			res.writeHead(200, headers);
+			iReq.pipe(res);
+			break;
+		}
 		default:
 			break;
 	}

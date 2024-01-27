@@ -9,10 +9,7 @@ const filesJson = join(cwd(), ".files/files.json");
  * Get the data of all the files.
  * @returns An array of files data
  */
-const getFilesData = async (ip = 0): Promise<Files> => {
-	const files = JSON.parse(await readFile(filesJson, "utf8")) as Files;
-
-	return ip ? files.filter(({ ip: targetIp }) => ip === targetIp) : files;
-};
+const getFilesData = async () =>
+	JSON.parse(await readFile(filesJson, "utf8")) as Files;
 
 export default getFilesData;
